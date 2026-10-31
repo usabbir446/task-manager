@@ -1,43 +1,86 @@
 package com.taskflow.app.util
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
 object AppUpdateManager {
 
-    private const val GITHUB_REPO = "usabbir446/task-manager"
-    private const val CURRENT_VERSION_CODE = 4 // Matches current versionCode
+    private const val GITHUB_USER = "usabbir446"
+    private const val GITHUB_REPO = "task-manager"
+    val CURRENT_VERSION_CODE: Int get() = com.taskflow.app.BuildConfig.VERSION_CODE
+    val CURRENT_VERSION_NAME: String get() = com.taskflow.app.BuildConfig.VERSION_NAME
 
     data class UpdateInfo(
         val isUpdateAvailable: Boolean,
         val latestVersionName: String,
+        val latestVersionCode: Int,
         val downloadUrl: String?,
-        val releaseNotes: String?
+        val releaseNotes: String?,
+        val errorMessage: String? = null
     )
 
     suspend fun checkForUpdates(): UpdateInfo = withContext(Dispatchers.IO) {
+        // 1. Try reading version.json from main branch
         try {
-            val url = URL("https://api.github.com/repos/$GITHUB_REPO/releases/latest")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
-            connection.setRequestProperty("User-Agent", "TaskFlow-App")
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
+            val manifestUrl = URL("https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/main/version.json")
+            val conn = (manifestUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
+                useCaches = false
+            }
+
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(jsonStr)
+                val remoteCode = json.optInt("versionCode", 0)
+                val remoteName = json.optString("versionName", "Latest")
+                val downloadUrl = json.optString("downloadUrl", "https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/main/app-release.apk")
+                val releaseNotes = json.optString("releaseNotes", "Bug fixes and performance improvements")
+
+                if (remoteCode > CURRENT_VERSION_CODE) {
+                    return@withContext UpdateInfo(
+                        isUpdateAvailable = true,
+                        latestVersionName = remoteName,
+                        latestVersionCode = remoteCode,
+                        downloadUrl = downloadUrl,
+                        releaseNotes = releaseNotes
+                    )
+                } else {
+                    return@withContext UpdateInfo(
+                        isUpdateAvailable = false,
+                        latestVersionName = remoteName,
+                        latestVersionCode = remoteCode,
+                        downloadUrl = downloadUrl,
+                        releaseNotes = releaseNotes
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Fallback: Check GitHub Releases API
+        try {
+            val apiUrl = URL("https://api.github.com/repos/$GITHUB_USER/$GITHUB_REPO/releases/latest")
+            val connection = (apiUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("Accept", "application/vnd.github.v3+json")
+                setRequestProperty("User-Agent", "TaskFlow-App")
+                connectTimeout = 8000
+                readTimeout = 8000
+            }
 
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
@@ -58,56 +101,118 @@ object AppUpdateManager {
                     }
                 }
 
-                UpdateInfo(
+                return@withContext UpdateInfo(
                     isUpdateAvailable = apkDownloadUrl != null,
                     latestVersionName = tagName,
+                    latestVersionCode = CURRENT_VERSION_CODE + 1,
                     downloadUrl = apkDownloadUrl,
                     releaseNotes = releaseNotes
                 )
-            } else {
-                UpdateInfo(false, "", null, null)
             }
         } catch (e: Exception) {
-            UpdateInfo(false, "", null, null)
+            return@withContext UpdateInfo(
+                isUpdateAvailable = false,
+                latestVersionName = CURRENT_VERSION_NAME,
+                latestVersionCode = CURRENT_VERSION_CODE,
+                downloadUrl = null,
+                releaseNotes = null,
+                errorMessage = e.localizedMessage
+            )
         }
+
+        UpdateInfo(
+            isUpdateAvailable = false,
+            latestVersionName = CURRENT_VERSION_NAME,
+            latestVersionCode = CURRENT_VERSION_CODE,
+            downloadUrl = null,
+            releaseNotes = null
+        )
     }
 
-    fun startDownloadAndInstall(context: Context, downloadUrl: String) {
-        Toast.makeText(context, "Downloading update in background...", Toast.LENGTH_SHORT).show()
+    suspend fun downloadAndInstallApk(
+        context: Context,
+        downloadUrl: String,
+        onProgress: (Int) -> Unit = {}
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val fileName = "TaskFlow_update.apk"
+            val targetDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+            val targetFile = File(targetDir, fileName)
+            if (targetFile.exists()) targetFile.delete()
 
-        val fileName = "TaskFlow_update.apk"
-        val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-            setTitle("TaskFlow Update")
-            setDescription("Downloading latest version...")
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
-            setMimeType("application/vnd.android.package-archive")
-        }
+            var currentUrl = downloadUrl
+            var redirectCount = 0
+            var connection: HttpURLConnection
 
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val downloadId = manager.enqueue(request)
+            // Handle HTTP 301/302/307 redirects from GitHub / raw
+            while (true) {
+                val urlObj = URL(currentUrl)
+                connection = (urlObj.openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "TaskFlow-App")
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
 
-        // BroadcastReceiver to trigger installation once download finishes
-        val onComplete = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    context.unregisterReceiver(this)
-                    installDownloadedApk(context, fileName)
+                val status = connection.responseCode
+                if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
+                    val newUrl = connection.getHeaderField("Location")
+                    currentUrl = newUrl
+                    redirectCount++
+                    if (redirectCount > 5) throw Exception("Too many redirects")
+                } else {
+                    break
                 }
             }
-        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+            val fileLength = connection.contentLength
+            connection.inputStream.use { input ->
+                FileOutputStream(targetFile).use { output ->
+                    val data = ByteArray(8192)
+                    var total: Long = 0
+                    var count: Int
+                    while (input.read(data).also { count = it } != -1) {
+                        total += count
+                        if (fileLength > 0) {
+                            val percent = ((total * 100) / fileLength).toInt()
+                            withContext(Dispatchers.Main) { onProgress(percent) }
+                        }
+                        output.write(data, 0, count)
+                    }
+                    output.flush()
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                installDownloadedApk(context, targetFile)
+            }
+            true
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Download failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+            false
         }
     }
 
-    private fun installDownloadedApk(context: Context, fileName: String) {
-        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-        if (!file.exists()) return
+    fun installDownloadedApk(context: Context, file: File) {
+        if (!file.exists()) {
+            Toast.makeText(context, "Downloaded installer file missing", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Android 8.0+ Check for REQUEST_INSTALL_PACKAGES permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                Toast.makeText(context, "Please allow 'Install unknown apps' to update TaskFlow", Toast.LENGTH_LONG).show()
+                val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(settingsIntent)
+                return
+            }
+        }
 
         val apkUri = FileProvider.getUriForFile(
             context,
@@ -121,6 +226,10 @@ object AppUpdateManager {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-        context.startActivity(installIntent)
+        try {
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Installer failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
     }
 }

@@ -172,22 +172,79 @@ fun SettingsScreen(
 
             val context = androidx.compose.ui.platform.LocalContext.current
             var isCheckingUpdates by remember { mutableStateOf(false) }
+            var updateAvailableDialog by remember { mutableStateOf<com.taskflow.app.util.AppUpdateManager.UpdateInfo?>(null) }
+            var downloadProgress by remember { mutableStateOf<Int?>(null) }
             val coroutineScope = rememberCoroutineScope()
+
+            updateAvailableDialog?.let { update ->
+                AlertDialog(
+                    onDismissRequest = {
+                        if (downloadProgress == null) updateAvailableDialog = null
+                    },
+                    title = { Text("Update Available: v${update.latestVersionName}") },
+                    text = {
+                        Column {
+                            Text(update.releaseNotes ?: "Bug fixes and improvements")
+                            Spacer(Modifier.height(12.dp))
+                            if (downloadProgress != null) {
+                                LinearProgressIndicator(
+                                    progress = { (downloadProgress ?: 0) / 100f },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text("Downloading: ${downloadProgress}%", style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                Text("Do you want to download and install this update?", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        if (downloadProgress == null) {
+                            Button(onClick = {
+                                val url = update.downloadUrl ?: return@Button
+                                downloadProgress = 0
+                                coroutineScope.launch {
+                                    val success = com.taskflow.app.util.AppUpdateManager.downloadAndInstallApk(
+                                        context,
+                                        url,
+                                        onProgress = { downloadProgress = it }
+                                    )
+                                    downloadProgress = null
+                                    if (success) {
+                                        updateAvailableDialog = null
+                                    }
+                                }
+                            }) {
+                                Text("Download & Install")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        if (downloadProgress == null) {
+                            TextButton(onClick = { updateAvailableDialog = null }) {
+                                Text("Later")
+                            }
+                        }
+                    }
+                )
+            }
 
             SettingsClickItem(
                 title = "Check for App Updates",
                 subtitle = if (isCheckingUpdates) "Checking GitHub for updates..." else "Tap to check and auto-download latest APK",
                 icon = Icons.Outlined.SystemUpdate,
                 onClick = {
-                    if (!isCheckingUpdates) {
+                    if (!isCheckingUpdates && downloadProgress == null) {
                         isCheckingUpdates = true
                         coroutineScope.launch {
                             val updateInfo = com.taskflow.app.util.AppUpdateManager.checkForUpdates()
                             isCheckingUpdates = false
-                            if (updateInfo.downloadUrl != null) {
-                                com.taskflow.app.util.AppUpdateManager.startDownloadAndInstall(context, updateInfo.downloadUrl)
+                            if (updateInfo.isUpdateAvailable && updateInfo.downloadUrl != null) {
+                                updateAvailableDialog = updateInfo
+                            } else if (updateInfo.errorMessage != null) {
+                                android.widget.Toast.makeText(context, "Check failed: ${updateInfo.errorMessage}", android.widget.Toast.LENGTH_SHORT).show()
                             } else {
-                                android.widget.Toast.makeText(context, "You are on the latest version!", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, "TaskFlow is up to date (v${com.taskflow.app.util.AppUpdateManager.CURRENT_VERSION_NAME})", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -196,7 +253,7 @@ fun SettingsScreen(
 
             SettingsClickItem(
                 title = "TaskFlow Pro",
-                subtitle = "Version 2.2 • Auto-updates enabled",
+                subtitle = "Version ${com.taskflow.app.util.AppUpdateManager.CURRENT_VERSION_NAME} • Auto-updates enabled",
                 icon = Icons.Outlined.TaskAlt,
                 onClick = {}
             )
