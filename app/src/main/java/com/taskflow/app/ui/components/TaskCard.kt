@@ -1,6 +1,8 @@
 package com.taskflow.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +53,6 @@ fun TaskCard(
         )
     }
 
-    // Parse subtasks
     val subtaskList = remember(task.subTasks) {
         if (task.subTasks.isBlank()) emptyList()
         else {
@@ -61,151 +65,156 @@ fun TaskCard(
         }
     }
 
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted) 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
-            else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (task.isCompleted) 0.dp else 2.dp)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                if (task.isCompleted)
+                    Brush.verticalGradient(listOf(Color(0xFF080B0A), Color(0xFF040605)))
+                else
+                    Brush.verticalGradient(listOf(Color(0xFF0E1412), Color(0xFF080C0B)))
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    if (task.isCompleted)
+                        listOf(Color(0xFF161E1C), Color(0xFF101614))
+                    else
+                        listOf(
+                            getPriorityColor(task.priority).copy(alpha = 0.35f),
+                            Color(0xFF1A2622)
+                        )
+                ),
+                shape = RoundedCornerShape(22.dp)
+            )
+            .clickable { expanded = !expanded }
+            .padding(14.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                verticalAlignment = Alignment.Top
-            ) {
+        Column {
+            Row(verticalAlignment = Alignment.Top) {
                 Checkbox(
                     checked = task.isCompleted,
                     onCheckedChange = { onToggleCompletion() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
+                        checkedColor = AmoledGlowTeal,
+                        checkmarkColor = Color(0xFF00201B),
                         uncheckedColor = getPriorityColor(task.priority)
                     )
                 )
-                
+
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                         ),
-                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        else MaterialTheme.colorScheme.onSurface,
+                        color = if (task.isCompleted) AmoledMutedText.copy(alpha = 0.6f) else Color.White,
                         maxLines = if (expanded) 10 else 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    
+
                     if (task.description.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = task.description,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = if (task.isCompleted) 0.4f else 0.7f
-                            ),
+                            color = AmoledMutedText.copy(alpha = if (task.isCompleted) 0.4f else 0.85f),
                             maxLines = if (expanded) 10 else 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Tags row
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Minimal rounded chips
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = { 
-                                Text(
-                                    text = getPriorityLabel(task.priority), 
-                                    style = MaterialTheme.typography.labelSmall
-                                ) 
-                            },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = getPriorityColor(task.priority).copy(alpha = 0.15f),
-                                labelColor = getPriorityColor(task.priority)
-                            ),
-                            border = null,
-                            modifier = Modifier.height(24.dp)
-                        )
-                        
-                        SuggestionChip(
-                            onClick = {},
-                            label = { 
-                                Text(
-                                    text = task.category, 
-                                    style = MaterialTheme.typography.labelSmall
-                                ) 
-                            },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = getCategoryColor(task.category).copy(alpha = 0.15f),
-                                labelColor = getCategoryColor(task.category)
-                            ),
-                            border = null,
-                            modifier = Modifier.height(24.dp)
-                        )
-
-                        if (task.recurrence != "None") {
-                            SuggestionChip(
-                                onClick = {},
-                                label = { Text("🔁 ${task.recurrence}", style = MaterialTheme.typography.labelSmall) },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                ),
-                                border = null,
-                                modifier = Modifier.height(24.dp)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = getPriorityColor(task.priority).copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, getPriorityColor(task.priority).copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                text = getPriorityLabel(task.priority),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = getPriorityColor(task.priority),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
-                        
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = getCategoryColor(task.category).copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, getCategoryColor(task.category).copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                text = task.category,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = getCategoryColor(task.category),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+
+                        if (task.recurrence != "None") {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF1E2825),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2E3D39))
+                            ) {
+                                Text(
+                                    text = "🔁 ${task.recurrence}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFCCE8E0),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
                         if (task.isFromVoice) {
                             Icon(
                                 imageVector = Icons.Filled.Mic,
                                 contentDescription = "Voice task",
                                 modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                tint = AmoledGlowTeal.copy(alpha = 0.8f)
                             )
                         }
                     }
 
-                    // Deadline / Due Date & Reminder Notice
+                    // Deadline / Due Date & Subtle Glow Reminder Badge
                     if (task.dueDate != null) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Outlined.Alarm,
                                 contentDescription = "Due reminder",
                                 modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = AmoledGlowTeal
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Reminder: ${formatDate(task.dueDate)}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                fontWeight = FontWeight.SemiBold,
+                                color = AmoledGlowTeal
                             )
                         }
                     }
                 }
-                
-                // Action Buttons: Edit and Delete
+
                 Row {
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit task",
                             modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = AmoledGlowTeal
                         )
                     }
                     IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(32.dp)) {
@@ -213,24 +222,23 @@ fun TaskCard(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete task",
                             modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            tint = AmoledMutedText.copy(alpha = 0.6f)
                         )
                     }
                 }
             }
 
-            // Expandable Subtasks Checklist
             AnimatedVisibility(visible = subtaskList.isNotEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 40.dp, top = 8.dp)
+                        .padding(start = 40.dp, top = 10.dp)
                 ) {
                     Text(
                         "Checklist (${subtaskList.count { it.second }}/${subtaskList.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = AmoledGlowTeal
                     )
                     subtaskList.forEachIndexed { index, (subTitle, isDone) ->
                         Row(
@@ -238,19 +246,23 @@ fun TaskCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onToggleSubtask(index, !isDone) }
-                                .padding(vertical = 2.dp)
+                                .padding(vertical = 3.dp)
                         ) {
                             Checkbox(
                                 checked = isDone,
                                 onCheckedChange = { onToggleSubtask(index, it) },
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AmoledGlowTeal,
+                                    checkmarkColor = Color(0xFF00201B)
+                                )
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = subTitle,
                                 style = MaterialTheme.typography.bodySmall,
                                 textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (isDone) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                                color = if (isDone) AmoledMutedText.copy(alpha = 0.5f) else Color.White
                             )
                         }
                     }
@@ -267,9 +279,9 @@ fun getPriorityColor(priority: Int) = when (priority) {
 }
 
 fun getPriorityLabel(priority: Int) = when (priority) {
-    3 -> "🔴 High"
-    2 -> "🟡 Med"
-    else -> "🟢 Low"
+    3 -> "High"
+    2 -> "Medium"
+    else -> "Low"
 }
 
 fun getCategoryColor(category: String) = when (category) {

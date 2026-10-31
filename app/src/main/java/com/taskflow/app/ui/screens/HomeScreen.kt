@@ -7,9 +7,14 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -17,14 +22,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.taskflow.app.data.local.TaskEntity
 import com.taskflow.app.ui.components.*
+import com.taskflow.app.ui.theme.*
 import com.taskflow.app.ui.viewmodel.TaskFilter
 import com.taskflow.app.ui.viewmodel.TaskUiState
 import com.taskflow.app.util.VoiceToTaskParser
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +60,13 @@ fun HomeScreen(
     var showExportMenu by remember { mutableStateOf(false) }
     var isListening by remember { mutableStateOf(false) }
     var voiceTaskToConfirm by remember { mutableStateOf<TaskEntity?>(null) }
+
+    // Calendar Selection State (defaults to Today)
+    var selectedCalendarDate by remember { mutableStateOf(Calendar.getInstance()) }
+    var isCalendarFilterActive by remember { mutableStateOf(false) }
+
+    val keyFormat = remember { SimpleDateFormat("yyyyMMdd", Locale.getDefault()) }
+    val displayDateFormatter = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
 
     // Voice recognition launcher
     val voiceLauncher = rememberLauncherForActivityResult(
@@ -82,7 +101,7 @@ fun HomeScreen(
         }
     }
 
-    // Voice task confirmation dialog
+    // Voice confirmation dialog
     voiceTaskToConfirm?.let { task ->
         AddTaskDialog(
             onDismiss = { voiceTaskToConfirm = null },
@@ -96,18 +115,29 @@ fun HomeScreen(
         )
     }
 
-    // Manual Add task dialog
+    // Manual Add dialog with pre-selected calendar date if scheduled
     if (showAddDialog) {
+        val initialScheduledDate = if (isCalendarFilterActive) {
+            val scheduledCal = Calendar.getInstance().apply {
+                timeInMillis = selectedCalendarDate.timeInMillis
+                set(Calendar.HOUR_OF_DAY, 9)
+                set(Calendar.MINUTE, 30)
+                set(Calendar.SECOND, 0)
+            }
+            scheduledCal.timeInMillis
+        } else null
+
         AddTaskDialog(
             onDismiss = { showAddDialog = false },
             onSaveTask = { task ->
                 onAddTask(task)
-                Toast.makeText(context, "Task created! ✅", Toast.LENGTH_SHORT).show()
-            }
+                Toast.makeText(context, "Task scheduled! ✅", Toast.LENGTH_SHORT).show()
+            },
+            initialTask = TaskEntity(title = "", dueDate = initialScheduledDate)
         )
     }
 
-    // Edit task dialog
+    // Edit dialog
     taskToEdit?.let { task ->
         AddTaskDialog(
             onDismiss = { taskToEdit = null },
@@ -121,6 +151,7 @@ fun HomeScreen(
     }
 
     Scaffold(
+        containerColor = Color(0xFF000000), // Pure Super AMOLED True Black
         topBar = {
             TopAppBar(
                 title = {
@@ -132,17 +163,33 @@ fun HomeScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                focusedBorderColor = AmoledGlowTeal,
+                                unfocusedBorderColor = Color(0xFF1E2825),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
                             )
                         )
                     } else {
                         Column {
-                            Text("TaskFlow", fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "TaskFlow",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    fontSize = 20.sp
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(AmoledGlowTeal)
+                                )
+                            }
                             Text(
                                 "${uiState.pendingTasks.size} pending • ${uiState.completedTasks.size} completed",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = AmoledMutedText
                             )
                         }
                     }
@@ -154,48 +201,50 @@ fun HomeScreen(
                     }) {
                         Icon(
                             if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
-                            contentDescription = "Search"
+                            contentDescription = "Search",
+                            tint = Color.White
                         )
                     }
                     Box {
                         IconButton(onClick = { showExportMenu = true }) {
-                            Icon(Icons.Outlined.FileDownload, contentDescription = "Export")
+                            Icon(Icons.Outlined.FileDownload, contentDescription = "Export", tint = Color.White)
                         }
                         DropdownMenu(
                             expanded = showExportMenu,
-                            onDismissRequest = { showExportMenu = false }
+                            onDismissRequest = { showExportMenu = false },
+                            modifier = Modifier.background(Color(0xFF0E1412))
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Export to CSV") },
+                                text = { Text("Export to CSV", color = Color.White) },
                                 onClick = {
                                     showExportMenu = false
                                     onExportRequested("csv")
                                 },
-                                leadingIcon = { Icon(Icons.Outlined.TableChart, null) }
+                                leadingIcon = { Icon(Icons.Outlined.TableChart, null, tint = AmoledGlowTeal) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Export to Markdown Report") },
+                                text = { Text("Export to Markdown Report", color = Color.White) },
                                 onClick = {
                                     showExportMenu = false
                                     onExportRequested("md")
                                 },
-                                leadingIcon = { Icon(Icons.Outlined.Description, null) }
+                                leadingIcon = { Icon(Icons.Outlined.Description, null, tint = AmoledGlowTeal) }
                             )
                         }
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color(0xFF000000)
                 )
             )
         },
         floatingActionButton = {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 VoiceInputButton(
                     isListening = isListening,
@@ -204,10 +253,11 @@ fun HomeScreen(
                 
                 ExtendedFloatingActionButton(
                     onClick = { showAddDialog = true },
-                    icon = { Icon(Icons.Filled.Add, "Add Task") },
-                    text = { Text("Add Task") },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    icon = { Icon(Icons.Filled.Add, "Schedule Task") },
+                    text = { Text("Schedule Task", fontWeight = FontWeight.Bold) },
+                    containerColor = AmoledGlowTeal,
+                    contentColor = Color(0xFF00201B),
+                    shape = RoundedCornerShape(20.dp)
                 )
             }
         }
@@ -216,79 +266,121 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(Color(0xFF000000))
         ) {
+            // 1. Productivity Streak Header Card
             ProductivityCard(
                 streakDays = uiState.streakDays,
                 completedToday = uiState.completedTodayCount,
                 mostProductiveWindow = uiState.peakProductivityWindow
             )
 
-            // Filter tabs
-            ScrollableTabRow(
-                selectedTabIndex = TaskFilter.entries.indexOf(uiState.selectedFilter),
-                modifier = Modifier.fillMaxWidth(),
-                edgePadding = 16.dp,
-                containerColor = MaterialTheme.colorScheme.surface,
-                divider = {}
+            // 2. Interactive Super AMOLED Modern Calendar at Top
+            ModernCalendarHeader(
+                selectedDate = selectedCalendarDate,
+                onDateSelected = { newDate ->
+                    selectedCalendarDate = newDate
+                    isCalendarFilterActive = true
+                },
+                tasks = uiState.allTasks
+            )
+
+            // 3. Filter tabs & Active Date Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TaskFilter.entries.forEach { filter ->
-                    val count = when (filter) {
-                        TaskFilter.ALL -> uiState.allTasks.size
-                        TaskFilter.PENDING -> uiState.pendingTasks.size
-                        TaskFilter.COMPLETED -> uiState.completedTasks.size
-                    }
-                    Tab(
-                        selected = uiState.selectedFilter == filter,
-                        onClick = { onFilterChange(filter) },
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(filter.name.lowercase().replaceFirstChar { it.uppercase() })
-                                Badge(
-                                    containerColor = if (uiState.selectedFilter == filter) 
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                ) {
-                                    Text(
-                                        "$count",
-                                        color = if (uiState.selectedFilter == filter) 
-                                            MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                // Status Filter Chips
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TaskFilter.entries.forEach { filter ->
+                        val isSelected = uiState.selectedFilter == filter && !isCalendarFilterActive
+                        Surface(
+                            onClick = {
+                                isCalendarFilterActive = false
+                                onFilterChange(filter)
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) AmoledGlowTeal.copy(alpha = 0.18f) else Color(0xFF0A0F0D),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) AmoledGlowTeal else Color(0xFF1B2421)
+                            )
+                        ) {
+                            Text(
+                                text = filter.name.lowercase().replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) AmoledGlowTeal else AmoledMutedText,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
                         }
-                    )
+                    }
+                }
+
+                // Calendar Active Indicator / Clear Button
+                if (isCalendarFilterActive) {
+                    Surface(
+                        onClick = { isCalendarFilterActive = false },
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF182622),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AmoledGlowTeal.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "📅 ${displayDateFormatter.format(selectedCalendarDate.time)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AmoledGlowTeal
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Filled.Close, contentDescription = "Clear date filter", tint = AmoledGlowTeal, modifier = Modifier.size(14.dp))
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            val displayTasks = when (uiState.selectedFilter) {
+            // 4. Tasks List at the Bottom
+            val baseList = when (uiState.selectedFilter) {
                 TaskFilter.ALL -> uiState.allTasks
                 TaskFilter.PENDING -> uiState.pendingTasks
                 TaskFilter.COMPLETED -> uiState.completedTasks
             }
 
+            val displayTasks = if (isCalendarFilterActive) {
+                val selectedKey = keyFormat.format(selectedCalendarDate.time)
+                val cal = Calendar.getInstance()
+                baseList.filter { task ->
+                    val stamp = task.dueDate ?: task.createdAt
+                    cal.timeInMillis = stamp
+                    keyFormat.format(cal.time) == selectedKey
+                }
+            } else {
+                baseList
+            }
+
             if (displayTasks.isEmpty() && !uiState.isLoading) {
                 EmptyStateView(
-                    title = when (uiState.selectedFilter) {
+                    title = if (isCalendarFilterActive) "No tasks on this date" else when (uiState.selectedFilter) {
                         TaskFilter.ALL -> "No tasks yet"
                         TaskFilter.PENDING -> "All caught up! 🎉"
                         TaskFilter.COMPLETED -> "Nothing completed yet"
                     },
-                    subtitle = when (uiState.selectedFilter) {
-                        TaskFilter.ALL -> "Speak or tap + to add your first task with deadlines"
-                        TaskFilter.PENDING -> "All pending tasks done. Great work!"
-                        TaskFilter.COMPLETED -> "Finished tasks will appear here"
-                    }
+                    subtitle = if (isCalendarFilterActive)
+                        "Tap '+ Schedule Task' to plan a task for ${displayDateFormatter.format(selectedCalendarDate.time)}"
+                    else "Speak or tap + to plan your schedule"
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                    contentPadding = PaddingValues(bottom = 120.dp, top = 2.dp)
                 ) {
                     items(
                         items = displayTasks,
@@ -303,10 +395,6 @@ fun HomeScreen(
                                 onToggleSubtask(task, index, isDone)
                             }
                         )
-                    }
-                    
-                    item {
-                        Spacer(modifier = Modifier.height(160.dp))
                     }
                 }
             }
