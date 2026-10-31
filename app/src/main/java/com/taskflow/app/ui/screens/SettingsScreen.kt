@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.taskflow.app.ui.viewmodel.SettingsUiState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -166,12 +167,36 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // About Section
-            SettingsSectionHeader(icon = Icons.Outlined.Info, title = "About & Features")
+            // About & Updates Section
+            SettingsSectionHeader(icon = Icons.Outlined.Info, title = "About & Updates")
+
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var isCheckingUpdates by remember { mutableStateOf(false) }
+            val coroutineScope = rememberCoroutineScope()
+
+            SettingsClickItem(
+                title = "Check for App Updates",
+                subtitle = if (isCheckingUpdates) "Checking GitHub for updates..." else "Tap to check and auto-download latest APK",
+                icon = Icons.Outlined.SystemUpdate,
+                onClick = {
+                    if (!isCheckingUpdates) {
+                        isCheckingUpdates = true
+                        coroutineScope.launch {
+                            val updateInfo = com.taskflow.app.util.AppUpdateManager.checkForUpdates()
+                            isCheckingUpdates = false
+                            if (updateInfo.downloadUrl != null) {
+                                com.taskflow.app.util.AppUpdateManager.startDownloadAndInstall(context, updateInfo.downloadUrl)
+                            } else {
+                                android.widget.Toast.makeText(context, "You are on the latest version!", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            )
 
             SettingsClickItem(
                 title = "TaskFlow Pro",
-                subtitle = "Version 2.0 • Home widget, Quick Settings tile & voice reminders active",
+                subtitle = "Version 2.2 • Auto-updates enabled",
                 icon = Icons.Outlined.TaskAlt,
                 onClick = {}
             )
