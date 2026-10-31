@@ -279,14 +279,7 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // 1. Productivity Streak Header Card
-            ProductivityCard(
-                streakDays = uiState.streakDays,
-                completedToday = uiState.completedTodayCount,
-                mostProductiveWindow = uiState.peakProductivityWindow
-            )
-
-            // 2. Interactive Calendar (Full Month View with month navigation)
+            // 1. Interactive Calendar (Full Month View with month navigation)
             ModernCalendarHeader(
                 selectedDate = selectedCalendarDate,
                 onDateSelected = { newDate ->

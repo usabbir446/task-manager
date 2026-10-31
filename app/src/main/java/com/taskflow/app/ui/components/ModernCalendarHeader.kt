@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +43,7 @@ fun ModernCalendarHeader(
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    var isExpanded by remember { mutableStateOf(true) }
 
     var currentMonthCalendar by remember {
         mutableStateOf(Calendar.getInstance().apply { timeInMillis = selectedDate.timeInMillis })
@@ -133,7 +136,16 @@ fun ModernCalendarHeader(
         list
     }
 
-    val weeks = remember(monthDays) { monthDays.chunked(7) }
+    val allWeeks = remember(monthDays) { monthDays.chunked(7) }
+    val visibleWeeks = if (isExpanded) {
+        allWeeks
+    } else {
+        val weekWithSelected = allWeeks.find { week ->
+            week.any { keyFormat.format(it.calendar.time) == selectedKey }
+        } ?: allWeeks.firstOrNull()
+        if (weekWithSelected != null) listOf(weekWithSelected) else emptyList()
+    }
+
     val dayLabels = listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT")
 
     // Theme adaptive colors
@@ -156,11 +168,11 @@ fun ModernCalendarHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(22.dp))
             .background(cardBg)
-            .border(width = 1.dp, brush = cardBorderColor, shape = RoundedCornerShape(24.dp))
-            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .border(width = 1.dp, brush = cardBorderColor, shape = RoundedCornerShape(22.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         // Top Header: Month Name & Navigation
         Row(
@@ -173,12 +185,12 @@ fun ModernCalendarHeader(
                     text = monthFormatter.format(currentMonthCalendar.time),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.4.sp
+                        letterSpacing = 0.3.sp
                     ),
                     color = headerTextColor
                 )
 
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(6.dp))
 
                 // "Today" Jump Pill
                 val isViewingCurrentMonth = currentMonthCalendar.get(Calendar.YEAR) == Calendar.getInstance().get(Calendar.YEAR) &&
@@ -203,14 +215,17 @@ fun ModernCalendarHeader(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = activeTeal,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
                 }
             }
 
-            // Month navigation arrows (< and >)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Month navigation arrows (< and >) & Expand/Collapse Toggle
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(
                     onClick = {
                         val newCal = Calendar.getInstance().apply {
@@ -219,13 +234,13 @@ fun ModernCalendarHeader(
                         }
                         currentMonthCalendar = newCal
                     },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(30.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Previous Month",
                         tint = mutedTextColor,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
 
@@ -237,19 +252,31 @@ fun ModernCalendarHeader(
                         }
                         currentMonthCalendar = newCal
                     },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(30.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next Month",
                         tint = mutedTextColor,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = { isExpanded = !isExpanded },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = mutedTextColor,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Weekday Column Header (SUN - SAT)
         Row(
@@ -262,7 +289,7 @@ fun ModernCalendarHeader(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = mutedTextColor
@@ -270,14 +297,14 @@ fun ModernCalendarHeader(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // Entire Month Grid (Weeks)
+        // Month Grid / Week View
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            weeks.forEach { week ->
+            visibleWeeks.forEach { week ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -291,11 +318,10 @@ fun ModernCalendarHeader(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .height(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     onDateSelected(item.calendar)
-                                    // If tapped day belongs to prev/next month, update current viewed month
                                     if (!item.isCurrentMonth) {
                                         currentMonthCalendar = Calendar.getInstance().apply {
                                             timeInMillis = item.calendar.timeInMillis
@@ -314,7 +340,7 @@ fun ModernCalendarHeader(
                                         Modifier.border(
                                             width = 1.dp,
                                             color = activeTeal.copy(alpha = 0.6f),
-                                            shape = RoundedCornerShape(12.dp)
+                                            shape = RoundedCornerShape(10.dp)
                                         )
                                     } else Modifier
                                 ),
@@ -327,7 +353,7 @@ fun ModernCalendarHeader(
                                 Text(
                                     text = "${item.dayNumber}",
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 13.sp,
+                                        fontSize = 12.5.sp,
                                         fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium
                                     ),
                                     color = when {
@@ -340,7 +366,7 @@ fun ModernCalendarHeader(
 
                                 // Task Indicator Dot
                                 if (taskCount > 0) {
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(1.dp))
                                     Box(
                                         modifier = Modifier
                                             .size(4.dp)
