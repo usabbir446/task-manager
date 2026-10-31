@@ -106,7 +106,7 @@ object VoiceToTaskParser {
         var dateSpecified = false
         var timeSpecified = false
 
-        // 1. Relative Minutes (e.g. "after 5 min", "in 5 minutes", "remind me after 5 min", "5 mins later", "৫ মিনিট পর")
+        // 1. Relative Minutes (e.g. "after 5 min", "in 10 mins", "৫ মিনিট পর")
         val relMinutesPattern = Pattern.compile(
             "(?:remind\\s+me\\s+)?(?:in|after)?\\s*([০-৯\\d]+|[a-zA-Z\\u0980-\\u09FF]+)\\s*(?:minutes?|mins?|min|মিনিট|মিনিটের|মিন)\\s*(?:later|after|পর|পরে)?",
             Pattern.CASE_INSENSITIVE
@@ -141,51 +141,82 @@ object VoiceToTaskParser {
             dateSpecified = true
         }
 
-        // 4. Bengali Time Formats: e.g. "সকাল ১০টায়", "বিকেল ৩টা", "রাত ৯টা", "দুপুর ২:১৫"
-        val bnPattern = Pattern.compile("(সকাল|দুপুর|বিকেল|সন্ধ্যা|রাত)?\\s*([০-৯\\d]{1,2})(?::|টা|টায়|টায়)?\\s*([০-৯\\d]{1,2})?\\s*(?:মিনিট|মিন)?(?:টা|টায়|টায়)?")
-        val bnMatcher = bnPattern.matcher(text)
-        if (bnMatcher.find()) {
-            val period = bnMatcher.group(1) ?: ""
-            val rawHour = bnMatcher.group(2)
-            val rawMinute = bnMatcher.group(3)
+        // 4. Military/4-digit Time Format: e.g. "0930 hr", "0930 hrs", "0930", "1430 hr", "at 0930"
+        val militaryPattern = Pattern.compile("(?:at|by)?\\s*([0-2]\\d)([0-5]\\d)\\s*(?:hrs?|hours?)?", Pattern.CASE_INSENSITIVE)
+        val milMatcher = militaryPattern.matcher(text)
+        if (milMatcher.find()) {
+            val hour = milMatcher.group(1)?.toIntOrNull() ?: 9
+            val minute = milMatcher.group(2)?.toIntOrNull() ?: 0
+            calendar.set(Calendar.HOUR_OF_DAY, hour)
+            calendar.set(Calendar.MINUTE, minute)
+            calendar.set(Calendar.SECOND, 0)
+            timeSpecified = true
+        }
 
-            if (!rawHour.isNullOrEmpty()) {
-                val parsedHour = convertBengaliToEnglishDigits(rawHour).toIntOrNull()
-                if (parsedHour != null && parsedHour in 1..24) {
-                    var hour = parsedHour
-                    val minute = if (!rawMinute.isNullOrEmpty()) {
-                        convertBengaliToEnglishDigits(rawMinute).toIntOrNull() ?: 0
-                    } else 0
+        // 5. Bengali Time Formats: e.g. "সকাল ৯টা ৩০", "সকাল ১০টায়", "বিকেল ৩টা", "রাত ৯টা"
+        if (!timeSpecified) {
+            val bnPattern = Pattern.compile("(সকাল|দুপুর|বিকেল|সন্ধ্যা|রাত)?\\s*([০-৯\\d]{1,2})(?::|টা|টায়|টায়)?\\s*([০-৯\\d]{1,2})?\\s*(?:মিনিট|মিন)?(?:টা|টায়|টায়)?")
+            val bnMatcher = bnPattern.matcher(text)
+            if (bnMatcher.find()) {
+                val period = bnMatcher.group(1) ?: ""
+                val rawHour = bnMatcher.group(2)
+                val rawMinute = bnMatcher.group(3)
 
-                    if ((period.contains("বিকেল") || period.contains("সন্ধ্যা") || period.contains("রাত")) && hour < 12) {
-                        hour += 12
-                    } else if (period.contains("দুপুর") && hour in 1..4) {
-                        hour += 12
+                if (!rawHour.isNullOrEmpty()) {
+                    val parsedHour = convertBengaliToEnglishDigits(rawHour).toIntOrNull()
+                    if (parsedHour != null && parsedHour in 1..24) {
+                        var hour = parsedHour
+                        val minute = if (!rawMinute.isNullOrEmpty()) {
+                            convertBengaliToEnglishDigits(rawMinute).toIntOrNull() ?: 0
+                        } else 0
+
+                        if ((period.contains("বিকেল") || period.contains("সন্ধ্যা") || period.contains("রাত")) && hour < 12) {
+                            hour += 12
+                        } else if (period.contains("দুপুর") && hour in 1..4) {
+                            hour += 12
+                        }
+
+                        calendar.set(Calendar.HOUR_OF_DAY, hour)
+                        calendar.set(Calendar.MINUTE, minute)
+                        calendar.set(Calendar.SECOND, 0)
+                        timeSpecified = true
                     }
-
-                    calendar.set(Calendar.HOUR_OF_DAY, hour)
-                    calendar.set(Calendar.MINUTE, minute)
-                    calendar.set(Calendar.SECOND, 0)
-                    timeSpecified = true
                 }
             }
         }
 
-        // 5. English Time Formats: e.g. "at 3 PM", "at 10:30 am", "at 5:00", "by 4 pm"
+        // 6. English Time Formats with explicit Colon, Spoken minutes, or AM/PM
+        // Examples: "at 9:30 am", "9:30 in the morning", "at 9 30 am", "9 thirty am", "9:30 hr", "at 10 am"
         if (!timeSpecified) {
-            val enTimePattern = Pattern.compile("(?:at|by)?\\s*(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", Pattern.CASE_INSENSITIVE)
+            val enTimePattern = Pattern.compile(
+                "(?:at|by)?\\s*(\\d{1,2})(?::|\\s+)?(\\d{2})?\\s*(?:in\\s+the\\s+morning|in\\s+the\\s+afternoon|in\\s+the\\s+evening|at\\s+night|am|pm|hrs?|hours?)?",
+                Pattern.CASE_INSENSITIVE
+            )
             val enMatcher = enTimePattern.matcher(text)
             while (enMatcher.find()) {
                 val hourStr = enMatcher.group(1)
                 val minStr = enMatcher.group(2)
-                val amPm = enMatcher.group(3)?.lowercase()
+                val matched = enMatcher.group(0)?.lowercase() ?: ""
 
                 val parsedHour = hourStr?.toIntOrNull()
-                if (parsedHour != null && (amPm != null || text.contains("at ") || text.contains("by "))) {
+                val isRelevant = parsedHour != null && (
+                    minStr != null ||
+                    matched.contains("am") || matched.contains("pm") ||
+                    matched.contains("morning") || matched.contains("afternoon") ||
+                    matched.contains("evening") || matched.contains("night") ||
+                    matched.contains("hr") || matched.contains("at ") || matched.contains("by ")
+                )
+
+                if (parsedHour != null && isRelevant) {
                     var hour = parsedHour
                     val minute = minStr?.toIntOrNull() ?: 0
-                    if (amPm == "pm" && hour < 12) hour += 12
-                    if (amPm == "am" && hour == 12) hour = 0
+
+                    if ((text.contains("pm") || text.contains("afternoon") || text.contains("evening") || text.contains("night")) && hour < 12) {
+                        hour += 12
+                    }
+                    if ((text.contains("am") || text.contains("in the morning") || text.contains("morning")) && hour == 12) {
+                        hour = 0
+                    }
 
                     calendar.set(Calendar.HOUR_OF_DAY, hour)
                     calendar.set(Calendar.MINUTE, minute)
@@ -193,6 +224,43 @@ object VoiceToTaskParser {
                     timeSpecified = true
                     break
                 }
+            }
+        }
+
+        // 7. Spoken numbers: "nine thirty in the morning", "ten fifteen am"
+        if (!timeSpecified) {
+            val spokenPattern = Pattern.compile(
+                "(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\\s+(fifteen|twenty|thirty|forty|forty\\s+five|fifty)?\\s*(?:in\\s+the\\s+morning|in\\s+the\\s+afternoon|in\\s+the\\s+evening|am|pm)?",
+                Pattern.CASE_INSENSITIVE
+            )
+            val spokenMatcher = spokenPattern.matcher(text)
+            if (spokenMatcher.find()) {
+                val hourWord = spokenMatcher.group(1)?.lowercase() ?: ""
+                val minWord = spokenMatcher.group(2)?.lowercase()?.replace(" ", "") ?: ""
+
+                val hourVal = numberWordsEN[hourWord] ?: 9
+                val minVal = when (minWord) {
+                    "fifteen" -> 15
+                    "twenty" -> 20
+                    "thirty" -> 30
+                    "forty" -> 40
+                    "fortyfive" -> 45
+                    "fifty" -> 50
+                    else -> 0
+                }
+
+                var hour = hourVal
+                if ((text.contains("pm") || text.contains("afternoon") || text.contains("evening") || text.contains("night")) && hour < 12) {
+                    hour += 12
+                }
+                if ((text.contains("am") || text.contains("in the morning") || text.contains("morning")) && hour == 12) {
+                    hour = 0
+                }
+
+                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                calendar.set(Calendar.MINUTE, minVal)
+                calendar.set(Calendar.SECOND, 0)
+                timeSpecified = true
             }
         }
 
@@ -223,12 +291,12 @@ object VoiceToTaskParser {
     }
 
     private fun cleanTaskTitle(rawTitle: String): String {
-        // Remove trailing or leading reminder prefixes like "remind me after 5 min", "in 10 mins", "after 5 min to ..."
         var cleaned = rawTitle
             .replace(Regex("(?i)^(?:remind\\s+me\\s+to|remind\\s+me\\s+about|remind\\s+me\\s+)\\s*"), "")
             .replace(Regex("(?i)\\b(?:in|after)\\s+\\d+\\s*(?:minutes?|mins?|min|hours?|hrs?|hr)\\b"), "")
             .replace(Regex("(?i)\\b\\d+\\s*(?:minutes?|mins?|min|hours?|hrs?|hr)\\s*(?:later|after)\\b"), "")
             .replace(Regex("[০-৯\\d]+\\s*(?:মিনিট|মিন|ঘণ্টা|ঘন্টার)\\s*(?:পর|পরে)"), "")
+            .replace(Regex("(?i)\\b(?:at|by)?\\s*\\d{1,4}\\s*(?:am|pm|hrs?|hours?|in\\s+the\\s+morning)?\\b"), "")
             .replace(Regex("(?i)^(?:to|for)\\s+"), "")
             .trim()
 
