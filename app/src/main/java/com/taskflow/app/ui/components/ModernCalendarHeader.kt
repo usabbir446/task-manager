@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.taskflow.app.data.local.TaskEntity
@@ -52,16 +54,16 @@ fun ModernCalendarHeader(
     val monthFormatter = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()) }
     val keyFormat = remember { SimpleDateFormat("yyyyMMdd", Locale.getDefault()) }
 
-    // Map scheduled dates to task count
-    val taskDateMap = remember(tasks) {
-        val map = mutableMapOf<String, Int>()
+    // Map scheduled dates to list of tasks
+    val tasksByDate = remember(tasks) {
+        val map = mutableMapOf<String, MutableList<TaskEntity>>()
         val cal = Calendar.getInstance()
         val fmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
         for (task in tasks) {
             val dateStamp = task.dueDate ?: task.createdAt
             cal.timeInMillis = dateStamp
             val key = fmt.format(cal.time)
-            map[key] = (map[key] ?: 0) + 1
+            map.getOrPut(key) { mutableListOf() }.add(task)
         }
         map
     }
@@ -302,7 +304,7 @@ fun ModernCalendarHeader(
         // Month Grid / Week View
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             visibleWeeks.forEach { week ->
                 Row(
@@ -313,13 +315,41 @@ fun ModernCalendarHeader(
                         val itemKey = keyFormat.format(item.calendar.time)
                         val isSelected = itemKey == selectedKey
                         val isToday = itemKey == todayKey
-                        val taskCount = taskDateMap[itemKey] ?: 0
+                        val dayTasks = tasksByDate[itemKey] ?: emptyList()
+                        val taskCount = dayTasks.size
+                        val hasHighPriority = dayTasks.any { it.priority == 3 && !it.isCompleted }
+
+                        // Background & border for cells with events
+                        val cellBg = when {
+                            isSelected -> if (isDark) AmoledGlowTeal else activeTeal
+                            isToday -> if (isDark) activeTeal.copy(alpha = 0.16f) else activeTeal.copy(alpha = 0.10f)
+                            taskCount > 0 -> if (isDark) Color(0xFF0F1E19) else Color(0xFFEDF7F4)
+                            else -> Color.Transparent
+                        }
+
+                        val cellBorderModifier = when {
+                            isSelected -> Modifier
+                            isToday -> Modifier.border(
+                                width = 1.dp,
+                                color = activeTeal.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            taskCount > 0 -> Modifier.border(
+                                width = 1.dp,
+                                color = if (hasHighPriority) Color(0xFFFF5252).copy(alpha = 0.6f)
+                                        else activeTeal.copy(alpha = if (isDark) 0.4f else 0.5f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            else -> Modifier
+                        }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(34.dp)
+                                .height(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
+                                .background(cellBg)
+                                .then(cellBorderModifier)
                                 .clickable {
                                     onDateSelected(item.calendar)
                                     if (!item.isCurrentMonth) {
@@ -327,23 +357,7 @@ fun ModernCalendarHeader(
                                             timeInMillis = item.calendar.timeInMillis
                                         }
                                     }
-                                }
-                                .background(
-                                    when {
-                                        isSelected -> if (isDark) AmoledGlowTeal else activeTeal
-                                        isToday -> if (isDark) activeTeal.copy(alpha = 0.16f) else activeTeal.copy(alpha = 0.10f)
-                                        else -> Color.Transparent
-                                    }
-                                )
-                                .then(
-                                    if (isToday && !isSelected) {
-                                        Modifier.border(
-                                            width = 1.dp,
-                                            color = activeTeal.copy(alpha = 0.6f),
-                                            shape = RoundedCornerShape(10.dp)
-                                        )
-                                    } else Modifier
-                                ),
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
@@ -353,38 +367,103 @@ fun ModernCalendarHeader(
                                 Text(
                                     text = "${item.dayNumber}",
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 12.5.sp,
-                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected || isToday || taskCount > 0) FontWeight.Bold else FontWeight.Medium
                                     ),
                                     color = when {
                                         isSelected -> if (isDark) Color(0xFF00201B) else Color.White
                                         !item.isCurrentMonth -> if (isDark) Color(0xFF384441) else Color(0xFFB4BFBC)
                                         isToday -> activeTeal
+                                        taskCount > 0 -> if (isDark) Color.White else Color(0xFF0B1F19)
                                         else -> if (isDark) Color(0xFFE6ECE9) else Color(0xFF19201E)
                                     }
                                 )
 
-                                // Task Indicator Dot
+                                // Prominent Event Badge (Capsule with Count)
                                 if (taskCount > 0) {
                                     Spacer(modifier = Modifier.height(1.dp))
+                                    val badgeBg = when {
+                                        isSelected -> if (isDark) Color(0xFF00201B) else Color.White
+                                        hasHighPriority -> Color(0xFFFF3B30)
+                                        else -> if (isDark) AmoledGlowTeal else Color(0xFF006B5E)
+                                    }
+                                    val badgeTextColor = when {
+                                        isSelected -> if (isDark) AmoledGlowTeal else activeTeal
+                                        hasHighPriority -> Color.White
+                                        else -> if (isDark) Color(0xFF00201B) else Color.White
+                                    }
+
                                     Box(
                                         modifier = Modifier
-                                            .size(4.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (isSelected) {
-                                                    if (isDark) Color(0xFF00201B) else Color.White
-                                                } else {
-                                                    activeTeal
-                                                }
-                                            )
-                                    )
+                                            .height(11.dp)
+                                            .defaultMinSize(minWidth = 16.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(badgeBg)
+                                            .padding(horizontal = 3.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (taskCount > 9) "9+" else "$taskCount",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 8.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                lineHeight = 8.5.sp
+                                            ),
+                                            color = badgeTextColor
+                                        )
+                                    }
                                 } else {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Active Event Preview Bar for Selected Date
+        val selectedDayTasks = tasksByDate[selectedKey] ?: emptyList()
+        if (selectedDayTasks.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isDark) Color(0xFF101C18) else Color(0xFFEBF6F3),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.8.dp,
+                    if (isDark) AmoledGlowTeal.copy(alpha = 0.35f) else Color(0xFF80CBC4)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Event,
+                        contentDescription = null,
+                        tint = activeTeal,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    val firstTask = selectedDayTasks.first()
+                    val extraCount = selectedDayTasks.size - 1
+                    val timeStr = if (firstTask.dueDate != null) {
+                        " • " + SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(firstTask.dueDate))
+                    } else ""
+                    val summaryText = if (extraCount > 0) {
+                        "${firstTask.title}$timeStr (+${extraCount} more)"
+                    } else {
+                        "${firstTask.title}$timeStr"
+                    }
+                    Text(
+                        text = summaryText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) Color(0xFFE0EAE6) else Color(0xFF142B23),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
