@@ -33,6 +33,8 @@ object AppUpdateManager {
     )
 
     suspend fun checkForUpdates(): UpdateInfo = withContext(Dispatchers.IO) {
+        var lastError: String? = null
+
         // 1. Try reading version.json from main branch
         try {
             val manifestUrl = URL("https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/main/version.json")
@@ -51,25 +53,21 @@ object AppUpdateManager {
                 val downloadUrl = json.optString("downloadUrl", "https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/main/app-release.apk")
                 val releaseNotes = json.optString("releaseNotes", "Bug fixes and performance improvements")
 
-                if (remoteCode > CURRENT_VERSION_CODE) {
-                    return@withContext UpdateInfo(
-                        isUpdateAvailable = true,
-                        latestVersionName = remoteName,
-                        latestVersionCode = remoteCode,
-                        downloadUrl = downloadUrl,
-                        releaseNotes = releaseNotes
-                    )
-                } else {
-                    return@withContext UpdateInfo(
-                        isUpdateAvailable = false,
-                        latestVersionName = remoteName,
-                        latestVersionCode = remoteCode,
-                        downloadUrl = downloadUrl,
-                        releaseNotes = releaseNotes
-                    )
-                }
+                return@withContext UpdateInfo(
+                    isUpdateAvailable = remoteCode > CURRENT_VERSION_CODE,
+                    latestVersionName = remoteName,
+                    latestVersionCode = remoteCode,
+                    downloadUrl = downloadUrl,
+                    releaseNotes = releaseNotes
+                )
+            } else if (conn.responseCode == 404) {
+                lastError = "Repository is Private (HTTP 404). Make repository Public on GitHub to allow phone downloads."
+            } else {
+                lastError = "Server returned HTTP ${conn.responseCode}"
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            lastError = e.localizedMessage
+        }
 
         // 2. Fallback: Check GitHub Releases API
         try {
@@ -109,23 +107,15 @@ object AppUpdateManager {
                     releaseNotes = releaseNotes
                 )
             }
-        } catch (e: Exception) {
-            return@withContext UpdateInfo(
-                isUpdateAvailable = false,
-                latestVersionName = CURRENT_VERSION_NAME,
-                latestVersionCode = CURRENT_VERSION_CODE,
-                downloadUrl = null,
-                releaseNotes = null,
-                errorMessage = e.localizedMessage
-            )
-        }
+        } catch (_: Exception) {}
 
         UpdateInfo(
             isUpdateAvailable = false,
             latestVersionName = CURRENT_VERSION_NAME,
             latestVersionCode = CURRENT_VERSION_CODE,
             downloadUrl = null,
-            releaseNotes = null
+            releaseNotes = null,
+            errorMessage = lastError
         )
     }
 
