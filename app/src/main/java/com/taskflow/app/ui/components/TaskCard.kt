@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
@@ -230,24 +231,22 @@ fun TaskCard(
                         }
                     }
 
-                    // Deadline / Due Date & Reminder Badge
-                    if (task.dueDate != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Outlined.Alarm,
-                                contentDescription = "Due reminder",
-                                modifier = Modifier.size(14.dp),
-                                tint = tealAccent
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "Reminder: ${formatDate(task.dueDate)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = tealAccent
-                            )
-                        }
+                    // Deadline / Due Date & Reminder Badge (Always visible so date is never missing)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (task.dueDate != null) Icons.Outlined.Alarm else Icons.Outlined.CalendarToday,
+                            contentDescription = "Task date",
+                            modifier = Modifier.size(14.dp),
+                            tint = if (task.dueDate != null) tealAccent else mutedColor
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = if (task.dueDate != null) "Reminder: ${formatDate(task.dueDate)}" else "Date: ${formatDate(task.createdAt)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (task.dueDate != null) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (task.dueDate != null) tealAccent else mutedColor
+                        )
                     }
                 }
 

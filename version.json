@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "2.3",
+  "versionCode": 6,
+  "versionName": "2.4",
   "downloadUrl": "https://raw.githubusercontent.com/usabbir446/task-manager/main/app-release.apk",
-  "releaseNotes": "• Full month calendar grid with month navigation\n• Prominent event count badges & cell glow\n• Dynamic Light & Super AMOLED Dark themes\n• Auto-updater with direct APK installation"
+  "releaseNotes": "• Fixed Bangla date parsing (exact month, date & time)\n• Fixed accidental November 1 jump from morning ('সকাল')\n• Visible task dates & reminder timestamps on all cards\n• Auto-updater with direct APK installation"
 }
