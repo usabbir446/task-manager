@@ -41,37 +41,37 @@ object VoiceToTaskParser {
     )
 
     private val numberWordsBN = mapOf(
-        "এক" to 1, "১" to 1, "১লা" to 1, "প্রথম" to 1,
-        "দুই" to 2, "২" to 2, "২রা" to 2,
-        "তিন" to 3, "৩" to 3, "৩রা" to 3,
-        "চার" to 4, "৪" to 4, "৪ঠা" to 4,
-        "পাঁচ" to 5, "পাচ" to 5, "৫" to 5, "৫ই" to 5,
-        "ছয়" to 6, "ছয়" to 6, "৬" to 6, "৬ই" to 6,
-        "সাত" to 7, "৭" to 7, "৭ই" to 7,
-        "আট" to 8, "৮" to 8, "৮ই" to 8,
-        "নয়" to 9, "নয়" to 9, "৯" to 9, "৯ই" to 9,
-        "দশ" to 10, "১০" to 10, "১০ই" to 10,
-        "এগারো" to 11, "১১" to 11,
-        "বারো" to 12, "১২" to 12,
-        "তেরো" to 13, "১৩" to 13,
-        "চৌদ্দ" to 14, "১৪" to 14,
-        "পনের" to 15, "পনেরো" to 15, "১৫" to 15,
-        "ষোলো" to 16, "১৬" to 16,
-        "সতেরো" to 17, "১৭" to 17,
-        "আঠারো" to 18, "১৮" to 18,
-        "উনিশ" to 19, "১৯" to 19,
-        "বিশ" to 20, "কুড়ি" to 20, "২০" to 20,
-        "একুশ" to 21, "২১" to 21,
-        "বাইশ" to 22, "২২" to 22,
-        "তেইশ" to 23, "২৩" to 23,
-        "চব্বিশ" to 24, "২৪" to 24,
-        "পঁচিশ" to 25, "২৫" to 25,
-        "ছাব্বিশ" to 26, "২৬" to 26,
-        "সাতাশ" to 27, "২৭" to 27,
-        "আঠাশ" to 28, "২৮" to 28,
-        "উনত্রিশ" to 29, "২৯" to 29,
-        "ত্রিশ" to 30, "৩০" to 30,
-        "একত্রিশ" to 31, "৩১" to 31
+        "এক" to 1, "১" to 1, "১লা" to 1, "পহেলা" to 1, "প্রথম" to 1,
+        "দুই" to 2, "২" to 2, "২রা" to 2, "দোশরা" to 2,
+        "তিন" to 3, "৩" to 3, "৩রা" to 3, "তেসরা" to 3,
+        "চার" to 4, "৪" to 4, "৪ঠা" to 4, "চৌঠা" to 4,
+        "পাঁচ" to 5, "পাচ" to 5, "৫" to 5, "৫ই" to 5, "পাঁচই" to 5,
+        "ছয়" to 6, "ছয়" to 6, "৬" to 6, "৬ই" to 6, "ছয়ই" to 6,
+        "সাত" to 7, "৭" to 7, "৭ই" to 7, "সাতই" to 7,
+        "আট" to 8, "৮" to 8, "৮ই" to 8, "আটই" to 8,
+        "নয়" to 9, "নয়" to 9, "৯" to 9, "৯ই" to 9, "নয়ই" to 9,
+        "দশ" to 10, "১০" to 10, "১০ই" to 10, "দশই" to 10,
+        "এগারো" to 11, "১১" to 11, "১১ই" to 11,
+        "বারো" to 12, "১২" to 12, "১২ই" to 12,
+        "তেরো" to 13, "১৩" to 13, "১৩ই" to 13,
+        "চৌদ্দ" to 14, "১৪" to 14, "১৪ই" to 14,
+        "পনের" to 15, "পনেরো" to 15, "১৫" to 15, "১৫ই" to 15,
+        "ষোলো" to 16, "১৬" to 16, "১৬ই" to 16,
+        "সতেরো" to 17, "১৭" to 17, "১৭ই" to 17,
+        "আঠারো" to 18, "১৮" to 18, "১৮ই" to 18,
+        "উনিশ" to 19, "১৯" to 19, "১৯ই" to 19,
+        "বিশ" to 20, "কুড়ি" to 20, "২০" to 20, "২০ই" to 20,
+        "একুশ" to 21, "২১" to 21, "২১ই" to 21,
+        "বাইশ" to 22, "২২" to 22, "২২ই" to 22,
+        "তেইশ" to 23, "২৩" to 23, "২৩ই" to 23,
+        "চব্বিশ" to 24, "২৪" to 24, "২৪ই" to 24,
+        "পঁচিশ" to 25, "২৫" to 25, "২৫ই" to 25,
+        "ছাব্বিশ" to 26, "২৬" to 26, "২৬ই" to 26,
+        "সাতাশ" to 27, "২৭" to 27, "২৭ই" to 27,
+        "আঠাশ" to 28, "২৮" to 28, "২৮ই" to 28,
+        "উনত্রিশ" to 29, "২৯" to 29, "২৯ই" to 29,
+        "ত্রিশ" to 30, "৩০" to 30, "৩০ই" to 30,
+        "একত্রিশ" to 31, "৩১" to 31, "৩১ই" to 31
     )
 
     private val bengaliMonths = mapOf(
@@ -113,7 +113,7 @@ object VoiceToTaskParser {
 
         val subtasksString = subtasksList.joinToString(",") { "$it:false" }
 
-        // Ensure date is clearly visible in description if present
+        // Ensure date is clearly visible in description
         val dateDesc = if (dueDate != null) {
             val sdf = SimpleDateFormat("EEE, MMM dd • hh:mm a", Locale.getDefault())
             "📅 Scheduled: ${sdf.format(Date(dueDate))}"
@@ -198,14 +198,15 @@ object VoiceToTaskParser {
         }
 
         // 3. Explicit Month + Day (e.g. "১ নভেম্বর", "1st November", "নভেম্বর ১", "১৫ তারিখ")
-        val monthPatternStr = bengaliMonths.keys.joinToString("|")
+        val monthPatternStr = bengaliMonths.keys.map { Regex.escape(it) + "(?:ের|র|এর)?" }.joinToString("|")
+        val numKeys = numberWordsBN.keys.sortedByDescending { it.length }.map { Regex.escape(it) }.joinToString("|")
 
-        // Pattern A: Day then Month (e.g. "১ নভেম্বর", "1st November", "১৫ই অক্টোবর", "১০ nov")
-        val dayMonthRegex = Regex("([০-৯\\d]{1,2}|${numberWordsBN.keys.joinToString("|")})\\s*(?:লা|রা|ঠা|ই|th|st|nd|rd)?\\s*(?:তারিখ|তারিখে)?\\s*($monthPatternStr)", RegexOption.IGNORE_CASE)
+        // Pattern A: Day then Month (e.g. "১ নভেম্বর", "1st November", "১৫ই অক্টোবর", "১০ nov", "পহেলা নভেম্বর")
+        val dayMonthRegex = Regex("([০-৯\\d]{1,2}|$numKeys)\\s*(?:লা|রা|ঠা|ই|th|st|nd|rd)?\\s*(?:তারিখ|তারিখে)?\\s*($monthPatternStr)", RegexOption.IGNORE_CASE)
         val dmMatch = dayMonthRegex.find(text)
         if (dmMatch != null) {
             val dayToken = dmMatch.groupValues[1]
-            val monthToken = dmMatch.groupValues[2].lowercase()
+            val monthToken = cleanMonthToken(dmMatch.groupValues[2])
             val dayVal = parseNumber(dayToken)
             val monthVal = bengaliMonths[monthToken]
             if (dayVal != null && monthVal != null && dayVal in 1..31) {
@@ -217,10 +218,10 @@ object VoiceToTaskParser {
 
         // Pattern B: Month then Day (e.g. "নভেম্বর ১", "November 1", "নভেম্বর মাসের ৫ তারিখ", "Nov 15")
         if (!dateSpecified) {
-            val monthDayRegex = Regex("($monthPatternStr)\\s*(?:মাসের|এর)?\\s*([০-৯\\d]{1,2}|${numberWordsBN.keys.joinToString("|")})\\s*(?:তারিখ|তারিখে|লা|রা|ঠা|ই|th|st|nd|rd)?", RegexOption.IGNORE_CASE)
+            val monthDayRegex = Regex("($monthPatternStr)\\s*(?:মাসের|এর|র)?\\s*([০-৯\\d]{1,2}|$numKeys)\\s*(?:তারিখ|তারিখে|লা|রা|ঠা|ই|th|st|nd|rd)?", RegexOption.IGNORE_CASE)
             val mdMatch = monthDayRegex.find(text)
             if (mdMatch != null) {
-                val monthToken = mdMatch.groupValues[1].lowercase()
+                val monthToken = cleanMonthToken(mdMatch.groupValues[1])
                 val dayToken = mdMatch.groupValues[2]
                 val monthVal = bengaliMonths[monthToken]
                 val dayVal = parseNumber(dayToken)
@@ -234,7 +235,7 @@ object VoiceToTaskParser {
 
         // Pattern C: Just Day + তারিখ (e.g. "৫ তারিখ", "১০ তারিখে", "15 tarikh")
         if (!dateSpecified) {
-            val tarikhRegex = Regex("([০-৯\\d]{1,2}|${numberWordsBN.keys.joinToString("|")})\\s*(?:লা|রা|ঠা|ই)?\\s*(?:তারিখ|তারিখে|tarikh)", RegexOption.IGNORE_CASE)
+            val tarikhRegex = Regex("([০-৯\\d]{1,2}|$numKeys)\\s*(?:লা|রা|ঠা|ই)?\\s*(?:তারিখ|তারিখে|tarikh)", RegexOption.IGNORE_CASE)
             val tMatch = tarikhRegex.find(text)
             if (tMatch != null) {
                 val dayToken = tMatch.groupValues[1]
@@ -270,11 +271,14 @@ object VoiceToTaskParser {
         if (!dateSpecified) {
             if (Regex("(?<![\\p{L}])(?:আজকে|আজকের|আজ|today)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
                 dateSpecified = true
-            } else if (Regex("(?<![সবিগত\\p{L}])(?:আগামীকাল|কালকে|কালকের|কাল|tomorrow)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
+            } else if (Regex("(?<![সবিগত\\p{L}])(?:আগামী\\s*কাল(?:কে)?|কালকে|কালকের|কাল|tomorrow)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
                 dateSpecified = true
             } else if (Regex("(?<![\\p{L}])(?:পরশুদিন|পরশুর|পরশু|day after tomorrow)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
                 calendar.add(Calendar.DAY_OF_YEAR, 2)
+                dateSpecified = true
+            } else if (Regex("(?<![\\p{L}])(?:তরশুদিন|তরশু)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
+                calendar.add(Calendar.DAY_OF_YEAR, 3)
                 dateSpecified = true
             }
         }
@@ -291,7 +295,7 @@ object VoiceToTaskParser {
             timeSpecified = true
         }
 
-        // 6. Bengali Special Spoken Times: দেড়টা (1:30), আড়াইটা (2:30), সাড়ে [X]টা (half-past), সোয়া (quarter-past), পৌনে (quarter-to)
+        // 6. Bengali Special Spoken Times: দেড়টা (1:30), আড়াইটা (2:30), সাড়ে [X]টা (half-past)
         if (!timeSpecified) {
             if (Regex("(?:দেড়টা|দেরটা)").containsMatchIn(text)) {
                 val hour = if (text.contains("রাত")) 1 else 13
@@ -310,7 +314,7 @@ object VoiceToTaskParser {
 
         // Bangla "সাড়ে [X]টা" (e.g. "সাড়ে ৯টা", "সকাল সাড়ে নয়টা")
         if (!timeSpecified) {
-            val shareRegex = Regex("(সকাল|দুপুর|বিকেল|সন্ধ্যা|রাত)?\\s*সাড়ে\\s*([০-৯\\d]{1,2}|${numberWordsBN.keys.joinToString("|")})\\s*(?:টা|টায়|টায়)?")
+            val shareRegex = Regex("(সকাল|দুপুর|বিকেল|সন্ধ্যা|রাত)?\\s*সাড়ে\\s*([০-৯\\d]{1,2}|$numKeys)\\s*(?:টা|টায়|টায়)?")
             val sMatch = shareRegex.find(text)
             if (sMatch != null) {
                 val period = sMatch.groupValues[1]
@@ -459,8 +463,12 @@ object VoiceToTaskParser {
         return null
     }
 
+    private fun cleanMonthToken(token: String): String {
+        return token.lowercase().replace("ের", "").replace("এর", "").replace("র", "").trim()
+    }
+
     private fun parseNumber(token: String): Int? {
-        val cleanToken = token.lowercase().trim()
+        val cleanToken = token.lowercase().replace("লা", "").replace("রা", "").replace("ঠা", "").replace("ই", "").replace("th", "").replace("st", "").replace("nd", "").replace("rd", "").trim()
         val directInt = convertBengaliToEnglishDigits(cleanToken).toIntOrNull()
         if (directInt != null) return directInt
         if (numberWordsEN.containsKey(cleanToken)) return numberWordsEN[cleanToken]

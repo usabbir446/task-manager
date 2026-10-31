@@ -1,7 +1,12 @@
 package com.taskflow.app.ui.screens
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,8 +16,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.taskflow.app.ui.theme.AmoledGlowTeal
+import com.taskflow.app.ui.theme.AmoledMutedText
 import com.taskflow.app.ui.viewmodel.SettingsUiState
 import kotlinx.coroutines.launch
 
@@ -63,7 +77,7 @@ fun SettingsScreen(
                 title = { Text("Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -75,76 +89,68 @@ fun SettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Notification Section
-            SettingsSectionHeader(icon = Icons.Outlined.Notifications, title = "Smart Briefings & Notifications")
+            // Notification Reminders Section
+            SettingsSectionHeader(icon = Icons.Outlined.Notifications, title = "Smart Notifications")
 
             SettingsToggleItem(
-                title = "Morning Summary",
-                subtitle = "Remaining tasks briefing as your workday begins",
+                title = "Morning Motivation & Plan",
+                subtitle = "Daily task roadmap & weather context at ${formatTime(uiState.morningHour, uiState.morningMinute)}",
                 checked = uiState.morningNotificationEnabled,
                 onCheckedChange = onMorningNotificationToggle
             )
 
             if (uiState.morningNotificationEnabled) {
                 SettingsClickItem(
-                    title = "Morning Time",
+                    title = "Morning Notification Time",
                     subtitle = formatTime(uiState.morningHour, uiState.morningMinute),
-                    icon = Icons.Outlined.WbSunny,
+                    icon = Icons.Outlined.Schedule,
                     onClick = { showMorningTimePicker = true }
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
             SettingsToggleItem(
-                title = "Evening Summary",
-                subtitle = "Review tasks completed today before wrapping up",
+                title = "Evening Reflection",
+                subtitle = "Check uncompleted tasks & wrap up your day at ${formatTime(uiState.eveningHour, uiState.eveningMinute)}",
                 checked = uiState.eveningNotificationEnabled,
                 onCheckedChange = onEveningNotificationToggle
             )
 
             if (uiState.eveningNotificationEnabled) {
                 SettingsClickItem(
-                    title = "Evening Time",
+                    title = "Evening Notification Time",
                     subtitle = formatTime(uiState.eveningHour, uiState.eveningMinute),
-                    icon = Icons.Outlined.NightsStay,
+                    icon = Icons.Outlined.Schedule,
                     onClick = { showEveningTimePicker = true }
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            // Weekly Retrospective
             SettingsToggleItem(
-                title = "Weekly Retrospective",
-                subtitle = "Sunday evening digest of weekly tasks & top categories",
+                title = "Sunday Weekly Retrospective",
+                subtitle = "Productivity score, streak overview & insights",
                 checked = uiState.weeklyRetroEnabled,
                 onCheckedChange = onWeeklyRetroToggle
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Geofence / Location Section
-            SettingsSectionHeader(icon = Icons.Outlined.Place, title = "Office Location Context")
+            // Location Section
+            SettingsSectionHeader(icon = Icons.Outlined.LocationOn, title = "Location-Based Reminders")
 
             SettingsToggleItem(
-                title = "Auto-Briefing on Office Arrival",
-                subtitle = "Trigger morning task briefing when arriving at office coordinates",
+                title = "Office Arrival & Departure",
+                subtitle = "Get notified when entering or leaving your workplace",
                 checked = uiState.geofenceEnabled,
                 onCheckedChange = onGeofenceToggle
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Voice Section
-            SettingsSectionHeader(icon = Icons.Outlined.Mic, title = "Voice AI & Natural Language")
+            // Voice & Language Section
+            SettingsSectionHeader(icon = Icons.Outlined.Mic, title = "Voice Input Language")
 
             SettingsRadioGroup(
-                title = "Default Voice Language",
-                options = listOf(
-                    "en" to "🇺🇸 English (with natural time & subtask parsing)",
-                    "bn" to "🇧🇩 বাংলা (সময় ও তালিকা শনাক্তকরণসহ)"
-                ),
+                title = "Speech Recognition Primary Language",
+                options = listOf("en" to "English (US)", "bn" to "বাংলা (Bangla)"),
                 selectedOption = uiState.defaultVoiceLanguage,
                 onOptionSelected = onVoiceLanguageChange
             )
@@ -155,11 +161,11 @@ fun SettingsScreen(
             SettingsSectionHeader(icon = Icons.Outlined.Palette, title = "Appearance")
 
             SettingsRadioGroup(
-                title = "Theme",
+                title = "Theme Preference",
                 options = listOf(
-                    "system" to "🔄 System Default",
-                    "light" to "☀️ Light",
-                    "dark" to "🌙 Dark"
+                    "system" to "System Default",
+                    "light" to "Light Mode",
+                    "dark" to "Super AMOLED Dark"
                 ),
                 selectedOption = uiState.themeMode,
                 onOptionSelected = onThemeModeChange
@@ -174,32 +180,176 @@ fun SettingsScreen(
             var isCheckingUpdates by remember { mutableStateOf(false) }
             var updateAvailableDialog by remember { mutableStateOf<com.taskflow.app.util.AppUpdateManager.UpdateInfo?>(null) }
             var downloadProgress by remember { mutableStateOf<Int?>(null) }
+            var isDownloadSuccess by remember { mutableStateOf(false) }
+            var upToDateDialog by remember { mutableStateOf(false) }
+            var updateErrorDialog by remember { mutableStateOf<String?>(null) }
             val coroutineScope = rememberCoroutineScope()
 
-            updateAvailableDialog?.let { update ->
+            // 1. Checking for Updates Modal Animation
+            if (isCheckingUpdates) {
+                AlertDialog(
+                    onDismissRequest = {},
+                    confirmButton = {},
+                    title = null,
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CheckingUpdateAnimation()
+                            Spacer(Modifier.height(18.dp))
+                            Text(
+                                "Checking for Updates...",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Connecting to GitHub repository...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                )
+            }
+
+            // 2. Download Progress & Success Modal
+            if (downloadProgress != null || isDownloadSuccess) {
                 AlertDialog(
                     onDismissRequest = {
-                        if (downloadProgress == null) updateAvailableDialog = null
-                    },
-                    title = { Text("Update Available: v${update.latestVersionName}") },
-                    text = {
-                        Column {
-                            Text(update.releaseNotes ?: "Bug fixes and improvements")
-                            Spacer(Modifier.height(12.dp))
-                            if (downloadProgress != null) {
-                                LinearProgressIndicator(
-                                    progress = { (downloadProgress ?: 0) / 100f },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text("Downloading: ${downloadProgress}%", style = MaterialTheme.typography.bodySmall)
-                            } else {
-                                Text("Do you want to download and install this update?", fontWeight = FontWeight.SemiBold)
-                            }
+                        if (isDownloadSuccess) {
+                            downloadProgress = null
+                            isDownloadSuccess = false
+                            updateAvailableDialog = null
                         }
                     },
                     confirmButton = {
-                        if (downloadProgress == null) {
+                        if (isDownloadSuccess) {
+                            Button(onClick = {
+                                downloadProgress = null
+                                isDownloadSuccess = false
+                                updateAvailableDialog = null
+                            }) {
+                                Text("Done")
+                            }
+                        }
+                    },
+                    title = null,
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (isDownloadSuccess) {
+                                UpdateSuccessAnimation()
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    "Download Complete! 🎉",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF34C759)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "Launching installer... Tap 'Update' on the system prompt to finish.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.CloudDownload,
+                                    contentDescription = null,
+                                    tint = AmoledGlowTeal,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(Modifier.height(14.dp))
+                                Text(
+                                    "Downloading Update...",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(14.dp))
+
+                                // Dynamic Linear Progress Bar
+                                LinearProgressIndicator(
+                                    progress = { (downloadProgress ?: 0) / 100f },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    color = AmoledGlowTeal,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "TaskFlow v${updateAvailableDialog?.latestVersionName ?: "New"}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "${downloadProgress ?: 0}%",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AmoledGlowTeal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
+            // 3. Update Available Modal
+            updateAvailableDialog?.let { update ->
+                if (downloadProgress == null && !isDownloadSuccess) {
+                    AlertDialog(
+                        onDismissRequest = { updateAvailableDialog = null },
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.NewReleases,
+                                    contentDescription = null,
+                                    tint = AmoledGlowTeal,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("New Version Available: v${update.latestVersionName}")
+                            }
+                        },
+                        text = {
+                            Column {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            "What's New:",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            update.releaseNotes ?: "Bug fixes and improvements",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Text("Do you want to download and install this update now?")
+                            }
+                        },
+                        confirmButton = {
                             Button(onClick = {
                                 val url = update.downloadUrl ?: return@Button
                                 downloadProgress = 0
@@ -209,21 +359,74 @@ fun SettingsScreen(
                                         url,
                                         onProgress = { downloadProgress = it }
                                     )
-                                    downloadProgress = null
                                     if (success) {
-                                        updateAvailableDialog = null
+                                        isDownloadSuccess = true
+                                    } else {
+                                        downloadProgress = null
                                     }
                                 }
                             }) {
                                 Text("Download & Install")
                             }
-                        }
-                    },
-                    dismissButton = {
-                        if (downloadProgress == null) {
+                        },
+                        dismissButton = {
                             TextButton(onClick = { updateAvailableDialog = null }) {
                                 Text("Later")
                             }
+                        }
+                    )
+                }
+            }
+
+            // 4. Up-to-Date Modal
+            if (upToDateDialog) {
+                AlertDialog(
+                    onDismissRequest = { upToDateDialog = false },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF34C759),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("You're Up to Date!")
+                        }
+                    },
+                    text = {
+                        Text("TaskFlow v${com.taskflow.app.util.AppUpdateManager.CURRENT_VERSION_NAME} is running the latest build with full calendar and Bangla voice fixes.")
+                    },
+                    confirmButton = {
+                        Button(onClick = { upToDateDialog = false }) {
+                            Text("Done")
+                        }
+                    }
+                )
+            }
+
+            // 5. Error Dialog (e.g. Private repository)
+            updateErrorDialog?.let { errorMsg ->
+                AlertDialog(
+                    onDismissRequest = { updateErrorDialog = null },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.CloudOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Update Check Failed")
+                        }
+                    },
+                    text = {
+                        Text(errorMsg)
+                    },
+                    confirmButton = {
+                        Button(onClick = { updateErrorDialog = null }) {
+                            Text("OK")
                         }
                     }
                 )
@@ -231,20 +434,27 @@ fun SettingsScreen(
 
             SettingsClickItem(
                 title = "Check for App Updates",
-                subtitle = if (isCheckingUpdates) "Checking GitHub for updates..." else "Tap to check and auto-download latest APK",
+                subtitle = "Tap to check, download and auto-install latest APK",
                 icon = Icons.Outlined.SystemUpdate,
                 onClick = {
                     if (!isCheckingUpdates && downloadProgress == null) {
                         isCheckingUpdates = true
                         coroutineScope.launch {
+                            // Minimum duration to show cool scanning animation
+                            val startTime = System.currentTimeMillis()
                             val updateInfo = com.taskflow.app.util.AppUpdateManager.checkForUpdates()
+                            val elapsed = System.currentTimeMillis() - startTime
+                            if (elapsed < 1200) {
+                                kotlinx.coroutines.delay(1200 - elapsed)
+                            }
                             isCheckingUpdates = false
+
                             if (updateInfo.isUpdateAvailable && updateInfo.downloadUrl != null) {
                                 updateAvailableDialog = updateInfo
                             } else if (updateInfo.errorMessage != null) {
-                                android.widget.Toast.makeText(context, "Check failed: ${updateInfo.errorMessage}", android.widget.Toast.LENGTH_SHORT).show()
+                                updateErrorDialog = updateInfo.errorMessage
                             } else {
-                                android.widget.Toast.makeText(context, "TaskFlow is up to date (v${com.taskflow.app.util.AppUpdateManager.CURRENT_VERSION_NAME})", android.widget.Toast.LENGTH_SHORT).show()
+                                upToDateDialog = true
                             }
                         }
                     }
@@ -260,6 +470,105 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+fun CheckingUpdateAnimation(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "checking")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    Box(
+        modifier = modifier.size(100.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Outer pulsing glow circle
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .scale(pulseScale)
+                .clip(CircleShape)
+                .background(AmoledGlowTeal.copy(alpha = 0.12f))
+        )
+        // Rotating sweep gradient radar ring
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .rotate(rotation)
+                .border(
+                    width = 2.5.dp,
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            AmoledGlowTeal.copy(alpha = 0.05f),
+                            AmoledGlowTeal.copy(alpha = 0.4f),
+                            AmoledGlowTeal
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        // Center Cloud Sync Icon
+        Icon(
+            imageVector = Icons.Outlined.CloudSync,
+            contentDescription = null,
+            tint = AmoledGlowTeal,
+            modifier = Modifier.size(34.dp)
+        )
+    }
+}
+
+@Composable
+fun UpdateSuccessAnimation(modifier: Modifier = Modifier) {
+    var startAnim by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (startAnim) 1f else 0.2f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "success_scale"
+    )
+
+    LaunchedEffect(Unit) {
+        startAnim = true
+    }
+
+    Box(
+        modifier = modifier.size(90.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .scale(scale)
+                .clip(CircleShape)
+                .background(Color(0xFF34C759).copy(alpha = 0.18f))
+        )
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = "Success",
+            tint = Color(0xFF34C759),
+            modifier = Modifier
+                .size(54.dp)
+                .scale(scale)
+        )
     }
 }
 
