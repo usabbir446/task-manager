@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,8 @@ fun HomeScreen(
     onExportRequested: (format: String) -> Unit
 ) {
     val context = LocalContext.current
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     var showAddDialog by remember { mutableStateOf(false) }
     var taskToEdit by remember { mutableStateOf<TaskEntity?>(null) }
     var showSearch by remember { mutableStateOf(false) }
@@ -101,7 +104,7 @@ fun HomeScreen(
         }
     }
 
-    // Voice confirmation dialog
+    // Voice task confirmation dialog
     voiceTaskToConfirm?.let { task ->
         AddTaskDialog(
             onDismiss = { voiceTaskToConfirm = null },
@@ -115,7 +118,7 @@ fun HomeScreen(
         )
     }
 
-    // Manual Add dialog with pre-selected calendar date if scheduled
+    // Add dialog
     if (showAddDialog) {
         val initialScheduledDate = if (isCalendarFilterActive) {
             val scheduledCal = Calendar.getInstance().apply {
@@ -150,8 +153,14 @@ fun HomeScreen(
         )
     }
 
+    val primaryAccent = if (isDark) AmoledGlowTeal else MaterialTheme.colorScheme.primary
+    val titleTextColor = if (isDark) Color.White else Color(0xFF121816)
+    val mutedTextColor = if (isDark) AmoledMutedText else Color(0xFF6B7A75)
+    val cardChipBorder = if (isDark) Color(0xFF1B2421) else Color(0xFFD6DDD9)
+    val cardChipUnselectedBg = if (isDark) Color(0xFF0A0F0D) else Color(0xFFF0F4F2)
+
     Scaffold(
-        containerColor = Color(0xFF000000), // Pure Super AMOLED True Black
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -163,10 +172,10 @@ fun HomeScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AmoledGlowTeal,
-                                unfocusedBorderColor = Color(0xFF1E2825),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedBorderColor = primaryAccent,
+                                unfocusedBorderColor = cardChipBorder,
+                                focusedTextColor = titleTextColor,
+                                unfocusedTextColor = titleTextColor
                             )
                         )
                     } else {
@@ -175,7 +184,7 @@ fun HomeScreen(
                                 Text(
                                     "TaskFlow",
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
+                                    color = titleTextColor,
                                     fontSize = 20.sp
                                 )
                                 Spacer(Modifier.width(6.dp))
@@ -183,13 +192,13 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(AmoledGlowTeal)
+                                        .background(primaryAccent)
                                 )
                             }
                             Text(
                                 "${uiState.pendingTasks.size} pending • ${uiState.completedTasks.size} completed",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = AmoledMutedText
+                                color = mutedTextColor
                             )
                         }
                     }
@@ -202,42 +211,44 @@ fun HomeScreen(
                         Icon(
                             if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
                             contentDescription = "Search",
-                            tint = Color.White
+                            tint = titleTextColor
                         )
                     }
                     Box {
                         IconButton(onClick = { showExportMenu = true }) {
-                            Icon(Icons.Outlined.FileDownload, contentDescription = "Export", tint = Color.White)
+                            Icon(Icons.Outlined.FileDownload, contentDescription = "Export", tint = titleTextColor)
                         }
                         DropdownMenu(
                             expanded = showExportMenu,
                             onDismissRequest = { showExportMenu = false },
-                            modifier = Modifier.background(Color(0xFF0E1412))
+                            modifier = Modifier.background(if (isDark) Color(0xFF0E1412) else Color(0xFFFFFFFF))
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Export to CSV", color = Color.White) },
+                                text = { Text("Export to CSV", color = titleTextColor) },
                                 onClick = {
                                     showExportMenu = false
                                     onExportRequested("csv")
                                 },
-                                leadingIcon = { Icon(Icons.Outlined.TableChart, null, tint = AmoledGlowTeal) }
+                                leadingIcon = { Icon(Icons.Outlined.TableChart, null, tint = primaryAccent) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Export to Markdown Report", color = Color.White) },
+                                text = { Text("Export to Markdown Report", color = titleTextColor) },
                                 onClick = {
                                     showExportMenu = false
                                     onExportRequested("md")
                                 },
-                                leadingIcon = { Icon(Icons.Outlined.Description, null, tint = AmoledGlowTeal) }
+                                leadingIcon = { Icon(Icons.Outlined.Description, null, tint = primaryAccent) }
                             )
                         }
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = Color.White)
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = titleTextColor)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF000000)
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = titleTextColor,
+                    actionIconContentColor = titleTextColor
                 )
             )
         },
@@ -255,8 +266,8 @@ fun HomeScreen(
                     onClick = { showAddDialog = true },
                     icon = { Icon(Icons.Filled.Add, "Schedule Task") },
                     text = { Text("Schedule Task", fontWeight = FontWeight.Bold) },
-                    containerColor = AmoledGlowTeal,
-                    contentColor = Color(0xFF00201B),
+                    containerColor = primaryAccent,
+                    contentColor = if (isDark) Color(0xFF00201B) else Color.White,
                     shape = RoundedCornerShape(20.dp)
                 )
             }
@@ -266,7 +277,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFF000000))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // 1. Productivity Streak Header Card
             ProductivityCard(
@@ -275,7 +286,7 @@ fun HomeScreen(
                 mostProductiveWindow = uiState.peakProductivityWindow
             )
 
-            // 2. Interactive Super AMOLED Modern Calendar at Top
+            // 2. Interactive Calendar (Full Month View with month navigation)
             ModernCalendarHeader(
                 selectedDate = selectedCalendarDate,
                 onDateSelected = { newDate ->
@@ -303,17 +314,25 @@ fun HomeScreen(
                                 onFilterChange(filter)
                             },
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) AmoledGlowTeal.copy(alpha = 0.18f) else Color(0xFF0A0F0D),
+                            color = if (isSelected) {
+                                if (isDark) AmoledGlowTeal.copy(alpha = 0.18f) else MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                cardChipUnselectedBg
+                            },
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isSelected) AmoledGlowTeal else Color(0xFF1B2421)
+                                if (isSelected) primaryAccent else cardChipBorder
                             )
                         ) {
                             Text(
                                 text = filter.name.lowercase().replaceFirstChar { it.uppercase() },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) AmoledGlowTeal else AmoledMutedText,
+                                color = if (isSelected) {
+                                    if (isDark) AmoledGlowTeal else MaterialTheme.colorScheme.primary
+                                } else {
+                                    mutedTextColor
+                                },
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             )
                         }
@@ -325,8 +344,11 @@ fun HomeScreen(
                     Surface(
                         onClick = { isCalendarFilterActive = false },
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFF182622),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AmoledGlowTeal.copy(alpha = 0.5f))
+                        color = if (isDark) Color(0xFF182622) else MaterialTheme.colorScheme.primaryContainer,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isDark) AmoledGlowTeal.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -336,10 +358,15 @@ fun HomeScreen(
                                 text = "📅 ${displayDateFormatter.format(selectedCalendarDate.time)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = AmoledGlowTeal
+                                color = primaryAccent
                             )
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Filled.Close, contentDescription = "Clear date filter", tint = AmoledGlowTeal, modifier = Modifier.size(14.dp))
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Clear date filter",
+                                tint = primaryAccent,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }

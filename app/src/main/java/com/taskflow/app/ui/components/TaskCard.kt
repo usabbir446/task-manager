@@ -1,14 +1,16 @@
 package com.taskflow.app.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,11 +34,12 @@ fun TaskCard(
     onToggleCompletion: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onToggleSubtask: (Int, Boolean) -> Unit = { _, _ -> },
+    onToggleSubtask: (Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -65,28 +69,64 @@ fun TaskCard(
         }
     }
 
+    val cardBg = if (isDark) {
+        if (task.isCompleted)
+            Brush.verticalGradient(listOf(Color(0xFF080B0A), Color(0xFF040605)))
+        else
+            Brush.verticalGradient(listOf(Color(0xFF0E1412), Color(0xFF080C0B)))
+    } else {
+        if (task.isCompleted)
+            Brush.verticalGradient(listOf(Color(0xFFF5F7F6), Color(0xFFEEF2F0)))
+        else
+            Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFFAFCFB)))
+    }
+
+    val cardBorder = if (isDark) {
+        Brush.verticalGradient(
+            if (task.isCompleted)
+                listOf(Color(0xFF161E1C), Color(0xFF101614))
+            else
+                listOf(
+                    getPriorityColor(task.priority).copy(alpha = 0.35f),
+                    Color(0xFF1A2622)
+                )
+        )
+    } else {
+        Brush.verticalGradient(
+            if (task.isCompleted)
+                listOf(Color(0xFFE2E8E5), Color(0xFFD8E0DC))
+            else
+                listOf(
+                    getPriorityColor(task.priority).copy(alpha = 0.35f),
+                    Color(0xFFE0E6E3)
+                )
+        )
+    }
+
+    val titleColor = if (isDark) {
+        if (task.isCompleted) AmoledMutedText.copy(alpha = 0.6f) else Color.White
+    } else {
+        if (task.isCompleted) Color(0xFF8C9995) else Color(0xFF141A18)
+    }
+
+    val descriptionColor = if (isDark) {
+        AmoledMutedText.copy(alpha = if (task.isCompleted) 0.4f else 0.85f)
+    } else {
+        Color(0xFF55635F).copy(alpha = if (task.isCompleted) 0.5f else 1.0f)
+    }
+
+    val tealAccent = if (isDark) AmoledGlowTeal else Color(0xFF006B5E)
+    val mutedColor = if (isDark) AmoledMutedText else Color(0xFF6B7A75)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(
-                if (task.isCompleted)
-                    Brush.verticalGradient(listOf(Color(0xFF080B0A), Color(0xFF040605)))
-                else
-                    Brush.verticalGradient(listOf(Color(0xFF0E1412), Color(0xFF080C0B)))
-            )
+            .background(cardBg)
             .border(
                 width = 1.dp,
-                brush = Brush.verticalGradient(
-                    if (task.isCompleted)
-                        listOf(Color(0xFF161E1C), Color(0xFF101614))
-                    else
-                        listOf(
-                            getPriorityColor(task.priority).copy(alpha = 0.35f),
-                            Color(0xFF1A2622)
-                        )
-                ),
+                brush = cardBorder,
                 shape = RoundedCornerShape(22.dp)
             )
             .clickable { expanded = !expanded }
@@ -98,8 +138,8 @@ fun TaskCard(
                     checked = task.isCompleted,
                     onCheckedChange = { onToggleCompletion() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = AmoledGlowTeal,
-                        checkmarkColor = Color(0xFF00201B),
+                        checkedColor = tealAccent,
+                        checkmarkColor = if (isDark) Color(0xFF00201B) else Color.White,
                         uncheckedColor = getPriorityColor(task.priority)
                     )
                 )
@@ -113,7 +153,7 @@ fun TaskCard(
                             fontWeight = FontWeight.Bold,
                             textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                         ),
-                        color = if (task.isCompleted) AmoledMutedText.copy(alpha = 0.6f) else Color.White,
+                        color = titleColor,
                         maxLines = if (expanded) 10 else 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -123,7 +163,7 @@ fun TaskCard(
                         Text(
                             text = task.description,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = AmoledMutedText.copy(alpha = if (task.isCompleted) 0.4f else 0.85f),
+                            color = descriptionColor,
                             maxLines = if (expanded) 10 else 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -165,13 +205,16 @@ fun TaskCard(
                         if (task.recurrence != "None") {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E2825),
-                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2E3D39))
+                                color = if (isDark) Color(0xFF1E2825) else Color(0xFFE8EFEA),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    0.5.dp,
+                                    if (isDark) Color(0xFF2E3D39) else Color(0xFFD2DDD6)
+                                )
                             ) {
                                 Text(
                                     text = "🔁 ${task.recurrence}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFCCE8E0),
+                                    color = if (isDark) Color(0xFFCCE8E0) else Color(0xFF1F4339),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
@@ -182,12 +225,12 @@ fun TaskCard(
                                 imageVector = Icons.Filled.Mic,
                                 contentDescription = "Voice task",
                                 modifier = Modifier.size(16.dp),
-                                tint = AmoledGlowTeal.copy(alpha = 0.8f)
+                                tint = tealAccent.copy(alpha = 0.8f)
                             )
                         }
                     }
 
-                    // Deadline / Due Date & Subtle Glow Reminder Badge
+                    // Deadline / Due Date & Reminder Badge
                     if (task.dueDate != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -195,14 +238,14 @@ fun TaskCard(
                                 Icons.Outlined.Alarm,
                                 contentDescription = "Due reminder",
                                 modifier = Modifier.size(14.dp),
-                                tint = AmoledGlowTeal
+                                tint = tealAccent
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Reminder: ${formatDate(task.dueDate)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = AmoledGlowTeal
+                                color = tealAccent
                             )
                         }
                     }
@@ -214,7 +257,7 @@ fun TaskCard(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit task",
                             modifier = Modifier.size(18.dp),
-                            tint = AmoledGlowTeal
+                            tint = tealAccent
                         )
                     }
                     IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(32.dp)) {
@@ -222,7 +265,7 @@ fun TaskCard(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete task",
                             modifier = Modifier.size(18.dp),
-                            tint = AmoledMutedText.copy(alpha = 0.6f)
+                            tint = mutedColor.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -238,7 +281,7 @@ fun TaskCard(
                         "Checklist (${subtaskList.count { it.second }}/${subtaskList.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = AmoledGlowTeal
+                        color = tealAccent
                     )
                     subtaskList.forEachIndexed { index, (subTitle, isDone) ->
                         Row(
@@ -253,8 +296,8 @@ fun TaskCard(
                                 onCheckedChange = { onToggleSubtask(index, it) },
                                 modifier = Modifier.size(24.dp),
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = AmoledGlowTeal,
-                                    checkmarkColor = Color(0xFF00201B)
+                                    checkedColor = tealAccent,
+                                    checkmarkColor = if (isDark) Color(0xFF00201B) else Color.White
                                 )
                             )
                             Spacer(Modifier.width(8.dp))
@@ -262,7 +305,11 @@ fun TaskCard(
                                 text = subTitle,
                                 style = MaterialTheme.typography.bodySmall,
                                 textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
-                                color = if (isDone) AmoledMutedText.copy(alpha = 0.5f) else Color.White
+                                color = if (isDone) {
+                                    mutedColor.copy(alpha = 0.5f)
+                                } else {
+                                    if (isDark) Color.White else Color(0xFF141A18)
+                                }
                             )
                         }
                     }
